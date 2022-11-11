@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use serde::{de::DeserializeOwned, Serialize};
 use sled::{Config, Db};
 
 use crate::{DiskMap, Result};

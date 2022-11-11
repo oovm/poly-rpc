@@ -1,8 +1,11 @@
-use std::{marker::PhantomData, path::Path};
+use std::{borrow::Borrow, marker::PhantomData};
 
+use bincode::{
+    config::standard,
+    serde::{decode_from_slice, encode_to_vec},
+};
 use serde::{de::DeserializeOwned, Serialize};
-use serde_binary::{binary_stream::Endian, from_slice, to_vec};
-use sled::{Config, Db, IVec, Tree};
+use sled::{IVec, Tree};
 
 use crate::{DiskMapError, Result};
 
@@ -21,19 +24,19 @@ mod iter;
 /// use disk_map::DiskMap;
 /// ```
 pub struct DiskMap<K, V> {
-    database: Tree,
-    typing: PhantomData<(K, V)>,
+    inner: Tree,
+    typed: PhantomData<(K, V)>,
 }
 
 impl<K, V> Drop for DiskMap<K, V> {
     fn drop(&mut self) {
-        self.database.flush().ok();
+        self.inner.flush().ok();
     }
 }
 
 impl<K, V> From<Tree> for DiskMap<K, V> {
     fn from(value: Tree) -> Self {
-        Self { database: value, typing: Default::default() }
+        Self { inner: value, typed: Default::default() }
     }
 }
 
@@ -44,31 +47,35 @@ where
 {
     /// Check if the map contains no elements.
     pub fn is_empty(&self) -> bool {
-        self.database.is_empty()
+        self.inner.is_empty()
     }
-
     /// Get the value by key name, return `None` if no such key
     #[inline]
-    pub fn get(&self, key: K) -> Option<V> {
-        self.try_get(key).ok()
+    pub fn get<Q>(&self, key: Q) -> Option<V>
+    where
+        Q: Borrow<K>,
+    {
+        self.try_get(key.borrow().as_ref()).ok()
     }
-    pub fn try_get(&self, key: K) -> Result<V> {
-        let k = key.as_ref();
-        match self.database.get(k)? {
+    /// Raw api of `DiskMap::get`
+    pub fn try_get(&self, key: &[u8]) -> Result<V> {
+        match self.inner.get(key)? {
             Some(iv) => cast_iv(iv),
             None => Err(DiskMapError::KeyNotFound),
         }
     }
     /// Insert the value by key name, return `None` if no such key
     #[inline]
-    pub fn insert(&self, key: K, value: V) -> Option<V> {
-        self.try_insert(key, value).ok()
+    pub fn insert<Q>(&self, key: Q, value: V) -> Option<V>
+    where
+        K: From<Q>,
+    {
+        self.try_insert(K::from(key).as_ref(), value).ok()
     }
-    /// Trying to insert the value by key name, return `None` if no such key
-    pub fn try_insert(&self, key: K, value: V) -> Result<V> {
-        let k = key.as_ref();
-        let v = to_vec(&value, Endian::Little)?;
-        match self.database.insert(k, v.clone())? {
+    /// Raw api of `DiskMap::insert`
+    pub fn try_insert(&self, key: &[u8], value: V) -> Result<V> {
+        let v = encode_to_vec(&value, standard())?;
+        match self.inner.insert(key, v.clone())? {
             Some(iv) => cast_iv(iv),
             None => Err(DiskMapError::KeyNotFound),
         }
@@ -79,5 +86,5 @@ fn cast_iv<T>(s: IVec) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    Ok(from_slice(s.as_ref(), Endian::Little)?)
+    Ok(decode_from_slice(s.as_ref(), standard())?.0)
 }

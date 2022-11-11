@@ -1,4 +1,3 @@
-use disk_map::DiskMap;
 use sled_typed::{Database, DiskMap};
 use std::path::PathBuf;
 
@@ -15,7 +14,7 @@ async fn test_files() {
     let key = "key".to_string();
     let value = "value".to_string();
     map.insert(key, value);
-    println!("{:?}", map.get("key"));
+    println!("{:?}", map.get("key".to_string()));
 
     // file_db.test().await.unwrap()
 }

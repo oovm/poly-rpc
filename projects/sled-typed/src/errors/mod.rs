@@ -3,7 +3,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-mod for_binary;
+mod for_bincode;
 mod for_sled;
 mod for_std;
 
