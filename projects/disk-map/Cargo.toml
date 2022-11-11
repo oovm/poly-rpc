@@ -1,0 +1,22 @@
+[package]
+name = "disk-map"
+version = "0.0.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "Dictionaries stored on the hard disk"
+repository = "https://github.com/oovm/disk-map"
+documentation = "https://docs.rs/disk-map"
+readme = "Readme.md"
+license = "MPL-2.0"
+edition = "2021"
+
+[dependencies]
+sled = { version = "0.34.7", features = [] }
+serde = { version = "1.0.147", features = ["derive"] }
+serde-binary = "0.4.0"
+
+[dev-dependencies]
+tokio = { version = "1.21.2", features = ["full"] }
+
+[features]
+default = []
+compression = ["sled/compression"]
