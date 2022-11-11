@@ -1,5 +1,5 @@
 [package]
-name = "disk-map"
+name = "sled-typed"
 version = "0.0.0"
 authors = ["Aster <192607617@qq.com>"]
 description = "Dictionaries stored on the hard disk"

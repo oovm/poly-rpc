@@ -2,7 +2,7 @@ use std::{marker::PhantomData, path::Path};
 
 use serde::{de::DeserializeOwned, Serialize};
 use serde_binary::{binary_stream::Endian, from_slice, to_vec};
-use sled::{Config, Db, IVec};
+use sled::{Config, Db, IVec, Tree};
 
 use crate::{DiskMapError, Result};
 
@@ -21,8 +21,18 @@ mod iter;
 /// use disk_map::DiskMap;
 /// ```
 pub struct DiskMap<K, V> {
-    database: Db,
+    database: Tree,
     typed: PhantomData<(K, V)>,
+}
+
+pub struct Database {
+    inner: Db,
+}
+
+impl Database {
+    pub fn document<K: AsRef<[u8]>>(&self, name: K) {
+        let tree = self.inner.open_tree(name)?;
+    }
 }
 
 impl<K, V> Drop for DiskMap<K, V> {
@@ -31,8 +41,8 @@ impl<K, V> Drop for DiskMap<K, V> {
     }
 }
 
-impl<K, V> From<Db> for DiskMap<K, V> {
-    fn from(value: Db) -> Self {
+impl<K, V> From<Tree> for DiskMap<K, V> {
+    fn from(value: Tree) -> Self {
         Self { database: value, typed: Default::default() }
     }
 }
@@ -53,7 +63,7 @@ where
     /// ```
     /// use disk_map::DiskMap;
     /// ```
-    pub fn new(path: &Path) -> Result<Self> {
+    pub fn new(path: &Db, path: &str) -> Result<Self> {
         let compression = cfg!(feature = "compression");
         let database = Config::default() //
             .use_compression(compression)
@@ -96,7 +106,11 @@ where
             None => Err(DiskMapError::KeyNotFound),
         }
     }
-    /// Asynchronously flushes all dirty IO buffers and calls fsync. If this succeeds, it is guaranteed that all previous writes will be recovered if the system crashes. Returns the number of bytes flushed during this call.
+    /// Asynchronously flushes all dirty IO buffers and calls fsync.
+    ///
+    /// If this succeeds, it is guaranteed that all previous writes will be recovered if the system crashes.
+    ///
+    /// Returns the number of bytes flushed during this call.
     ///
     /// Flushing can take quite a lot of time, and you should measure the performance impact of using it on realistic sustained workloads running on realistic hardware.
     pub async fn flush(&self) -> Result<usize> {
