@@ -9,6 +9,7 @@ use sled::{IVec, Tree};
 
 use crate::{DiskMapError, Result};
 
+mod display;
 mod iter;
 
 /// A map store on hard disk
@@ -28,18 +29,6 @@ pub struct DiskMap<K, V> {
     typed: PhantomData<(K, V)>,
 }
 
-impl<K, V> Drop for DiskMap<K, V> {
-    fn drop(&mut self) {
-        self.inner.flush().ok();
-    }
-}
-
-impl<K, V> From<Tree> for DiskMap<K, V> {
-    fn from(value: Tree) -> Self {
-        Self { inner: value, typed: Default::default() }
-    }
-}
-
 impl<K, V> DiskMap<K, V>
 where
     K: AsRef<[u8]>,
@@ -57,7 +46,7 @@ where
     {
         self.try_get(key.borrow().as_ref()).ok()
     }
-    /// Raw api of `DiskMap::get`
+    /// Raw api of [`DiskMap::get`].
     pub fn try_get(&self, key: &[u8]) -> Result<V> {
         match self.inner.get(key)? {
             Some(iv) => cast_iv(iv),
@@ -72,7 +61,7 @@ where
     {
         self.try_insert(K::from(key).as_ref(), value).ok()
     }
-    /// Raw api of `DiskMap::insert`
+    /// Raw api of [`DiskMap::insert`].
     pub fn try_insert(&self, key: &[u8], value: V) -> Result<V> {
         let v = encode_to_vec(&value, standard())?;
         match self.inner.insert(key, v.clone())? {
