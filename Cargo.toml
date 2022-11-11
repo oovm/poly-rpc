@@ -1,7 +1,7 @@
 [workspace]
 members = ["projects/*"]
 default-members = [
-    "projects/disk-map",
+    "projects/sled-typed",
 ]
 exclude = [
     "projects/.DS_Store",

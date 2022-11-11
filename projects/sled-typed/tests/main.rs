@@ -1,4 +1,5 @@
 use disk_map::DiskMap;
+use sled_typed::{Database, DiskMap};
 use std::path::PathBuf;
 
 #[test]
@@ -9,11 +10,12 @@ fn ready() {
 #[tokio::test]
 async fn test_files() {
     let path = PathBuf::from("sqlite");
-    let file_db = DiskMap::new(&path).unwrap();
-    let key = "key";
+    let db = Database::open(&path).unwrap();
+    let map: DiskMap<String, String> = db.document("").unwrap();
+    let key = "key".to_string();
     let value = "value".to_string();
-    file_db.insert(key, value);
-    println!("{:?}", file_db.get("key"));
+    map.insert(key, value);
+    println!("{:?}", map.get("key"));
 
     // file_db.test().await.unwrap()
 }

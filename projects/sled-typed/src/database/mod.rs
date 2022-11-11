@@ -1,110 +1,54 @@
-use std::{marker::PhantomData, path::Path};
+use std::path::Path;
 
 use serde::{de::DeserializeOwned, Serialize};
-use serde_binary::{binary_stream::Endian, from_slice, to_vec};
-use sled::{Config, Db, IVec, Tree};
+use sled::{Config, Db};
 
-use crate::{DiskMapError, Result};
+use crate::{DiskMap, Result};
 
 mod iter;
-
-/// A map store on hard disk
-///
-/// # Arguments
-///
-/// * `K`: key must can represent as `&[u8]`
-/// * `V`: value must implement `Serialize` + `Deserialize`
-///
-/// # Examples
-///
-/// ```
-/// use disk_map::DiskMap;
-/// ```
-pub struct DiskMap<K, V> {
-    database: Tree,
-    typed: PhantomData<(K, V)>,
-}
 
 pub struct Database {
     inner: Db,
 }
 
-impl Database {
-    pub fn document<K: AsRef<[u8]>>(&self, name: K) {
-        let tree = self.inner.open_tree(name)?;
+impl From<Db> for Database {
+    fn from(value: Db) -> Self {
+        Self { inner: value }
     }
 }
 
-impl<K, V> Drop for DiskMap<K, V> {
+impl Drop for Database {
     fn drop(&mut self) {
-        self.database.flush().ok();
+        self.inner.flush().ok();
     }
 }
 
-impl<K, V> From<Tree> for DiskMap<K, V> {
-    fn from(value: Tree) -> Self {
-        Self { database: value, typed: Default::default() }
-    }
-}
-
-impl<K, V> DiskMap<K, V>
-where
-    K: AsRef<[u8]>,
-    V: Serialize + DeserializeOwned,
-{
-    /// Create a new dict on disk
-    ///
-    /// # Arguments
-    ///
-    /// * `path`: A folder path to store the dictionary
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use disk_map::DiskMap;
-    /// ```
-    pub fn new(path: &Db, path: &str) -> Result<Self> {
-        let compression = cfg!(feature = "compression");
+impl Database {
+    pub fn open(path: &Path) -> Result<Self> {
         let database = Config::default() //
-            .use_compression(compression)
+            .use_compression(true)
             .path(path)
             .flush_every_ms(Some(1000))
             .open()?;
-        Ok(Self { database, typed: Default::default() })
+        Ok(Self { inner: database })
     }
-    /// Check if the map contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.database.is_empty()
+    pub fn document<K, V>(&self, name: &str) -> Result<DiskMap<K, V>> {
+        let tree = self.inner.open_tree(name)?;
+        Ok(DiskMap::from(tree))
+    }
+    pub fn drop(&self, name: &str) -> bool {
+        self.inner.drop_tree(name).is_ok()
+    }
+    pub fn list(&self) -> Vec<String> {
+        self.inner //
+            .tree_names()
+            .into_iter()
+            .map(|f| unsafe { String::from_utf8_unchecked(f.to_vec()) })
+            .collect()
     }
     /// Returns the on-disk size of the storage files for this database.
-    pub fn size(&self) -> Result<u64> {
-        Ok(self.database.size_on_disk()?)
-    }
-    /// Get the value by key name, return `None` if no such key
-    #[inline]
-    pub fn get(&self, key: K) -> Option<V> {
-        self.try_get(key).ok()
-    }
-    pub fn try_get(&self, key: K) -> Result<V> {
-        let k = key.as_ref();
-        match self.database.get(k)? {
-            Some(iv) => cast_iv(iv),
-            None => Err(DiskMapError::KeyNotFound),
-        }
-    }
-    /// Insert the value by key name, return `None` if no such key
-    #[inline]
-    pub fn insert(&self, key: K, value: V) -> Option<V> {
-        self.try_insert(key, value).ok()
-    }
-    /// Trying to insert the value by key name, return `None` if no such key
-    pub fn try_insert(&self, key: K, value: V) -> Result<V> {
-        let k = key.as_ref();
-        let v = to_vec(&value, Endian::Little)?;
-        match self.database.insert(k, v.clone())? {
-            Some(iv) => cast_iv(iv),
-            None => Err(DiskMapError::KeyNotFound),
-        }
+    pub fn size_on_disk(&self) -> Result<u64> {
+        Ok(self.inner.size_on_disk()?)
     }
     /// Asynchronously flushes all dirty IO buffers and calls fsync.
     ///
@@ -114,13 +58,6 @@ where
     ///
     /// Flushing can take quite a lot of time, and you should measure the performance impact of using it on realistic sustained workloads running on realistic hardware.
     pub async fn flush(&self) -> Result<usize> {
-        Ok(self.database.flush_async().await?)
+        Ok(self.inner.flush_async().await?)
     }
-}
-
-fn cast_iv<T>(s: IVec) -> Result<T>
-where
-    T: DeserializeOwned,
-{
-    Ok(from_slice(s.as_ref(), Endian::Little)?)
 }
