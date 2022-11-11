@@ -8,24 +8,24 @@ mod for_sled;
 mod for_std;
 
 #[derive(Debug)]
-pub enum DictError {
+pub enum DiskMapError {
     IOError(std::io::Error),
     CustomError(String),
     KeyNotFound,
 }
 
-pub type Result<T = ()> = std::result::Result<T, DictError>;
+pub type Result<T = ()> = std::result::Result<T, DiskMapError>;
 
-impl Display for DictError {
+impl Display for DiskMapError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            DictError::IOError(e) => {
+            DiskMapError::IOError(e) => {
                 write!(f, "IO Error: {e}")
             }
-            DictError::CustomError(e) => f.write_str(e),
-            DictError::KeyNotFound => write!(f, "No such key"),
+            DiskMapError::CustomError(e) => f.write_str(e),
+            DiskMapError::KeyNotFound => write!(f, "No such key"),
         }
     }
 }
 
-impl Error for DictError {}
+impl Error for DiskMapError {}

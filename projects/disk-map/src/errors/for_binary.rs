@@ -1,9 +1,9 @@
 use serde_binary::Error;
 
-use crate::{DictError, DictError::CustomError};
+use crate::DiskMapError;
 
-impl From<Error> for DictError {
+impl From<Error> for DiskMapError {
     fn from(error: Error) -> Self {
-        CustomError(error.to_string())
+        DiskMapError::CustomError(error.to_string())
     }
 }

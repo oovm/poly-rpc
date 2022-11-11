@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_binary::{binary_stream::Endian, from_slice, to_vec};
 use sled::{Config, Db, IVec};
 
-use crate::{DictError, Result};
+use crate::{DiskMapError, Result};
 
 mod iter;
 
@@ -18,7 +18,7 @@ mod iter;
 /// # Examples
 ///
 /// ```
-///
+/// use disk_map::DiskMap;
 /// ```
 pub struct DiskMap<K, V> {
     database: Db,
@@ -31,28 +31,35 @@ impl<K, V> Drop for DiskMap<K, V> {
     }
 }
 
+impl<K, V> From<Db> for DiskMap<K, V> {
+    fn from(value: Db) -> Self {
+        Self { database: value, typed: Default::default() }
+    }
+}
+
 impl<K, V> DiskMap<K, V>
 where
     K: AsRef<[u8]>,
     V: Serialize + DeserializeOwned,
 {
-
     /// Create a new dict on disk
     ///
     /// # Arguments
     ///
-    /// * `path`:
-    ///
-    /// returns: Result<DiskMap<K, V>, DictError>
+    /// * `path`: A folder path to store the dictionary
     ///
     /// # Examples
     ///
     /// ```
-    ///
+    /// use disk_map::DiskMap;
     /// ```
     pub fn new(path: &Path) -> Result<Self> {
         let compression = cfg!(feature = "compression");
-        let database = Config::default().use_compression(compression).path(path).open()?;
+        let database = Config::default() //
+            .use_compression(compression)
+            .path(path)
+            .flush_every_ms(Some(1000))
+            .open()?;
         Ok(Self { database, typed: Default::default() })
     }
     /// Check if the map contains no elements.
@@ -72,7 +79,7 @@ where
         let k = key.as_ref();
         match self.database.get(k)? {
             Some(iv) => cast_iv(iv),
-            None => Err(DictError::KeyNotFound),
+            None => Err(DiskMapError::KeyNotFound),
         }
     }
     /// Insert the value by key name, return `None` if no such key
@@ -86,7 +93,7 @@ where
         let v = to_vec(&value, Endian::Little)?;
         match self.database.insert(k, v.clone())? {
             Some(iv) => cast_iv(iv),
-            None => Err(DictError::KeyNotFound),
+            None => Err(DiskMapError::KeyNotFound),
         }
     }
     /// Asynchronously flushes all dirty IO buffers and calls fsync. If this succeeds, it is guaranteed that all previous writes will be recovered if the system crashes. Returns the number of bytes flushed during this call.

@@ -1,8 +1,8 @@
 use sled::Error;
 
-use crate::{DictError, DictError::CustomError};
+use crate::{DiskMapError, DiskMapError::CustomError};
 
-impl From<Error> for DictError {
+impl From<Error> for DiskMapError {
     fn from(error: Error) -> Self {
         match error {
             Error::Io(e) => Self::IOError(e),
