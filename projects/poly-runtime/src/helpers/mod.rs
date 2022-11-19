@@ -1,8 +1,5 @@
 use crate::{PolyError, PolyResult};
-use hyper::{
-    header::{CONTENT_TYPE},
-    Body, HeaderMap,
-};
+use hyper::{header::CONTENT_TYPE, Body, HeaderMap};
 
 pub enum SupportContentType {
     Text,
@@ -15,17 +12,15 @@ fn resolve_body(body: &Body, headers: &HeaderMap) -> PolyResult {
         None => return Err(PolyError::unknown_content_type("EMPTY")),
     };
     let ct = match ct.as_str() {
-        s if s.starts_with("text/plain") => {
-            SupportContentType::Text
-        }
-        _=> return Err(PolyError::unknown_content_type(ct))
+        s if s.starts_with("text/plain") => SupportContentType::Text,
+        _ => return Err(PolyError::unknown_content_type(ct)),
     };
     match ct {
         SupportContentType::Text => {
-            body.
+            todo!()
         }
         SupportContentType::Json => {
-
+            todo!()
         }
     }
 }

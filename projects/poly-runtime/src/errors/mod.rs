@@ -4,12 +4,12 @@ use crate::Method;
 
 pub type PolyResult<T = ()> = Result<T, PolyError>;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct PolyError {
     kind: Box<PolyErrorKind>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum PolyErrorKind {
     UnknownEndPoint { method: Method, path: String },
     UnsupportedContentType { content: String },

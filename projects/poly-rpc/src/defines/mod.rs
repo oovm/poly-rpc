@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use hyper::{Body, HeaderMap, Method, Request, Response, StatusCode};
 use hyper::header::{CONTENT_TYPE, HeaderValue};
 use serde::de::Visitor;
-use poly_rt::PolyResult;
+use poly_rt::{PolyResult, QueryBuilder};
 use crate::errors::PolyResult;
 
 mod der;
@@ -23,7 +23,7 @@ impl Default for HelloRequest {
 
 
 impl HelloRequest {
-    fn with_query(mut self, query: &BTreeMap<String, String>) -> PolyResult<Self> {
+    fn with_query(mut self, query: &QueryBuilder) -> PolyResult<Self> {
         match query.get("id") {
 
             Some(_) => {},
@@ -94,8 +94,4 @@ impl GameServer {
 
 }
 
-
-pub struct QueryBuilder {
-
-}
 

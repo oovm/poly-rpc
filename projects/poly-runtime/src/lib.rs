@@ -1,6 +1,9 @@
 mod errors;
 mod helpers;
+mod query;
 
-pub use self::errors::{PolyError, PolyErrorKind, PolyResult};
-
+pub use self::{
+    errors::{PolyError, PolyErrorKind, PolyResult},
+    query::QueryBuilder,
+};
 pub use hyper::{Method, StatusCode};
