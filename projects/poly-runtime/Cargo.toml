@@ -21,6 +21,10 @@ path = "../serde-types"
 version = "0.14.23"
 features = ["full"]
 
+[dependencies.http]
+version = "0.2.8"
+features = []
+
 [dependencies.tokio]
 version = "1.21.2"
 features = ["full"]

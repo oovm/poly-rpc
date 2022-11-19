@@ -1,15 +1,12 @@
-use std::collections::BTreeMap;
 use std::net::SocketAddr;
 
-use hyper::{Body, HeaderMap, Method, Request, Response, StatusCode};
-use hyper::header::{CONTENT_TYPE, HeaderValue};
-use serde::de::Visitor;
-use poly_rt::{PolyResult, QueryBuilder};
-use crate::errors::PolyResult;
+use serde::{de::Visitor, Deserialize};
+
+use poly_rt::{Body, Method, PolyResult, QueryBuilder, Request, Response, StatusCode};
 
 mod der;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct HelloRequest {
     id: usize,
 }
@@ -20,20 +17,7 @@ impl Default for HelloRequest {
     }
 }
 
-
-
-impl HelloRequest {
-    fn with_query(mut self, query: &QueryBuilder) -> PolyResult<Self> {
-        match query.get("id") {
-
-            Some(_) => {},
-            None => {
-
-            }
-        }
-        self.id = query.get()
-    }
-}
+impl HelloRequest {}
 
 pub struct HelloResponse {}
 
@@ -66,22 +50,22 @@ pub struct GameServer {
 impl GameServer {
     pub fn as_server(&self) {}
 
-    fn resolve_route(&mut self, req: Request<Body>) -> PolyResult {
+    async fn resolve_route(&mut self, req: Request<Body>) -> PolyResult {
         let mut response = Response::new(Body::empty());
-        let url = req.uri();
-        let query = url.query();
-        let mut queries = BTreeMap::default();
-
-        resolve_body(req.body(), req.headers());
+        let path = QueryBuilder::uri_path(&req, "/aa")?;
         match req.method() {
-            &Method::GET => match vec!["user", "128", "icon", "256"].as_slice() {
-                &["user", user_id, "not", name] => {
-                    queries.insert("user_id", user_id);
-
-                    HelloRequest::default()
-                        .with_query()
-
-                    self.hello.get_hello()
+            &Method::GET => match path.as_slice() {
+                ["user", user_id, "not", name] => {
+                    let mut queries = QueryBuilder::from_uri(&req, &[]);
+                    queries.insert_path("user_id", user_id);
+                    queries.insert_path("name", name);
+                    self.hello.get_hello(HelloRequest::deserialize(queries.inner)?).await;
+                }
+                ["user", user_id, "not", name @ ..] => {
+                    let mut queries = QueryBuilder::from_uri(&req, &[]);
+                    queries.insert_path("user_id", *user_id);
+                    queries.insert_path("name", name);
+                    self.hello.get_hello(queries.cast_to::<HelloRequest>()?).await;
                 }
                 _ => {}
             },
@@ -91,7 +75,4 @@ impl GameServer {
         }
         Ok(())
     }
-
 }
-
-

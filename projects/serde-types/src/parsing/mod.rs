@@ -64,5 +64,4 @@ impl<'de> ParsableValue<'de> {
             map.push((Content::Str(key), value));
         }
     }
-    pub fn insert_header(&mut self) {}
 }

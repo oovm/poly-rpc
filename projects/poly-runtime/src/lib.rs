@@ -8,4 +8,4 @@ pub use self::{
     errors::{PolyError, PolyErrorKind, PolyResult},
     query::QueryBuilder,
 };
-pub use hyper::{Method, StatusCode};
+pub use hyper::{Body, Method, Request, Response, StatusCode};

@@ -18,3 +18,23 @@ where
         Err(Error::custom(format!("`{:?}` does not `{t}` or sequence of `{t}`", content.as_str(), t = type_name::<T>())))
     }
 }
+
+impl<T> From<T> for OneOrMany<T> {
+    fn from(value: T) -> Self {
+        OneOrMany::one(value)
+    }
+}
+
+impl<T> From<Vec<T>> for OneOrMany<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self { inner: value }
+    }
+}
+impl<T> From<&[T]> for OneOrMany<T>
+where
+    T: Clone,
+{
+    fn from(value: &[T]) -> Self {
+        Self { inner: value.to_vec() }
+    }
+}

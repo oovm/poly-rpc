@@ -5,6 +5,7 @@ use std::{
 
 use crate::Method;
 
+mod for_der;
 mod for_hyper;
 mod for_std;
 
