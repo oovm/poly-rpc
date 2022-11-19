@@ -1,21 +1,22 @@
 use super::*;
-use serde::{
-    __private::de::{ContentRefDeserializer, EnumDeserializer},
-    de::{
-        value::{StrDeserializer, StringDeserializer},
-        Unexpected,
-    },
-};
+use crate::PolyError;
+use serde::de::Unexpected;
+use std::fmt::Display;
 
-impl<'de> QueryBuilder<'de> {}
+impl<'de> QueryBuilder<'de> {
+    fn to_deserializer(self) -> ContentDeserializer<'de, PolyError> {
+        ContentDeserializer::new(self.inner)
+    }
+}
+
 impl<'de> Deserializer<'de> for QueryBuilder<'de> {
-    type Error = serde::de::value::Error;
+    type Error = PolyError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.to_deserializer().deserialize_any(visitor)
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -71,7 +72,67 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.inner {
+            Content::Bool(_) => {
+                todo!()
+            }
+            Content::U8(v) => visitor.visit_u32(v as u32),
+            Content::U16(v) => visitor.visit_u32(v as u32),
+            Content::U32(v) => visitor.visit_u32(v),
+            Content::U64(_) => {
+                todo!()
+            }
+            Content::I8(_) => {
+                todo!()
+            }
+            Content::I16(_) => {
+                todo!()
+            }
+            Content::I32(_) => {
+                todo!()
+            }
+            Content::I64(_) => {
+                todo!()
+            }
+            Content::F32(_) => {
+                todo!()
+            }
+            Content::F64(_) => {
+                todo!()
+            }
+            Content::Char(_) => {
+                todo!()
+            }
+            Content::String(_) => {
+                todo!()
+            }
+            Content::Str(s) => visitor.visit_u32(u32::from_str(s)?),
+            Content::ByteBuf(_) => {
+                todo!()
+            }
+            Content::Bytes(_) => {
+                todo!()
+            }
+            Content::None => {
+                todo!()
+            }
+            Content::Some(_) => {
+                todo!()
+            }
+            Content::Unit => {
+                todo!()
+            }
+            Content::Newtype(_) => {
+                todo!()
+            }
+            Content::Seq(_) => {
+                todo!()
+            }
+            Content::Map(_) => {
+                // serde::de::Error::invalid_type(Unexpected::Map, &visitor)
+                todo!()
+            }
+        }
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -169,11 +230,7 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        let seq = self.inner.into_iter().map(|v| ContentDeserializer::new(v.1));
-        let mut seq_visitor = SeqDeserializer::new(seq);
-        let value = visitor.visit_seq(&mut seq_visitor)?;
-        seq_visitor.end()?;
-        Ok(value)
+        self.to_deserializer().deserialize_seq(visitor)
     }
 
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
@@ -194,11 +251,7 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        let map = self.inner.into_iter().map(|(k, v)| (ContentDeserializer::new(Content::Str(k)), ContentDeserializer::new(v)));
-        let mut map_visitor = MapDeserializer::new(map);
-        let value = visitor.visit_map(&mut map_visitor)?;
-        map_visitor.end()?;
-        Ok(value)
+        self.to_deserializer().deserialize_map(visitor)
     }
 
     #[allow(unused_variables)]
@@ -211,10 +264,9 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_map(visitor)
+        self.to_deserializer().deserialize_struct(name, fields, visitor)
     }
 
-    #[allow(unused_variables)]
     fn deserialize_enum<V>(
         self,
         name: &'static str,
@@ -224,20 +276,7 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        let (variant, value) = {
-            let mut iter = self.inner.into_iter();
-            let (variant, value) = match iter.next() {
-                Some(v) => v,
-                None => {
-                    return Err(serde::de::Error::invalid_value(Unexpected::Map, &"map with a single key"));
-                }
-            };
-            if iter.next().is_some() {
-                return Err(serde::de::Error::invalid_value(Unexpected::Map, &"map with a single key"));
-            }
-            (Content::Str(variant), Some(value))
-        };
-        visitor.visit_enum(EnumDeserializer::new(variant, value))
+        self.to_deserializer().deserialize_enum(name, variants, visitor)
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>

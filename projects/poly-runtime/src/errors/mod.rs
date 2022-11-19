@@ -31,11 +31,21 @@ impl Error for PolyError {
     }
 }
 
+impl serde::de::Error for PolyError {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self { kind: Box::new(PolyErrorKind::Custom { message: msg.to_string() }), source: None }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum PolyErrorKind {
     SyntaxError { message: String },
     UnknownEndPoint { method: Method, path: String },
     UnsupportedContentType { content: String },
+    Custom { message: String },
 }
 
 impl From<PolyErrorKind> for PolyError {

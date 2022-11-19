@@ -1,9 +1,9 @@
 use std::{
-    collections::BTreeMap,
     fmt::{Debug, Formatter},
     str::FromStr,
 };
 
+use crate::PolyResult;
 use serde::{
     __private::de::{Content, ContentDeserializer},
     de::{
@@ -12,14 +12,18 @@ use serde::{
     },
     Deserialize, Deserializer,
 };
-
-use crate::PolyResult;
+use serde_types::ParsableValue;
 
 mod der;
 
-#[derive(Default)]
 pub struct QueryBuilder<'de> {
-    inner: BTreeMap<&'de str, Content<'de>>,
+    inner: ParsableValue<'de>,
+}
+
+impl Default for QueryBuilder<'_> {
+    fn default() -> Self {
+        Self { inner: Content::Map(vec![]) }
+    }
 }
 
 impl Debug for QueryBuilder<'_> {
@@ -29,11 +33,29 @@ impl Debug for QueryBuilder<'_> {
 }
 
 impl<'de> QueryBuilder<'de> {
+    pub fn text(s: &'de str) -> Self {
+        Self { inner: Content::Str(s) }
+    }
     pub fn get(&self, key: &str) -> Option<&Content<'de>> {
-        self.inner.get(key)
+        match &self.inner {
+            Content::Map(map) => {
+                for (k, v) in map.iter().rev() {
+                    if k.as_str()? == key {
+                        return Some(v);
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+        None
     }
     pub fn insert(&mut self, key: &'de str, value: Content<'de>) {
-        self.inner.insert(key, value);
+        match &mut self.inner {
+            Content::Map(map) => {
+                map.push((Content::Str(key), value));
+            }
+            _ => {}
+        }
     }
     pub fn insert_header(&mut self) {}
 }
@@ -48,10 +70,10 @@ pub enum TestEnum {}
 
 #[test]
 fn test() -> PolyResult {
-    let mut q = QueryBuilder::default();
-    q.insert("id", Content::Str("str"));
-    q.insert("user", Content::U64(u64::from_str("1001")?));
+    let mut q = QueryBuilder::text("12");
+    // q.insert("id", Content::Str("str"));
+    // q.insert("user", Content::U64(u64::from_str("1001")?));
     println!("{:#?}", q);
-    println!("{:#?}", TestEnum::deserialize(q));
+    println!("{:#?}", u32::deserialize(q));
     Ok(())
 }
