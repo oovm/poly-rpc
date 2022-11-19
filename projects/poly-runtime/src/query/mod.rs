@@ -1,4 +1,8 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Formatter},
+    str::FromStr,
+};
 
 use serde::{
     __private::de::{Content, ContentDeserializer},
@@ -8,16 +12,14 @@ use serde::{
     },
     Deserialize, Deserializer,
 };
+
+use crate::PolyResult;
+
 mod der;
 
+#[derive(Default)]
 pub struct QueryBuilder<'de> {
-    inner: Content<'de>,
-}
-
-impl Default for QueryBuilder<'_> {
-    fn default() -> Self {
-        Self { inner: Content::Map(vec![]) }
-    }
+    inner: BTreeMap<&'de str, Content<'de>>,
 }
 
 impl Debug for QueryBuilder<'_> {
@@ -27,25 +29,29 @@ impl Debug for QueryBuilder<'_> {
 }
 
 impl<'de> QueryBuilder<'de> {
-    pub fn get(&self) {}
-    pub fn insert_usize(&mut self, key: &'static str, value: &'de str) {
-        match &mut self.inner {
-            Content::Map(v) => v.push((Content::Str(key), Content::Str(value))),
-            _ => {}
-        }
+    pub fn get(&self, key: &str) -> Option<&Content<'de>> {
+        self.inner.get(key)
+    }
+    pub fn insert(&mut self, key: &'de str, value: Content<'de>) {
+        self.inner.insert(key, value);
     }
     pub fn insert_header(&mut self) {}
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Test {
+    id: String,
     user: usize,
 }
+#[derive(Debug, Deserialize)]
+pub enum TestEnum {}
 
 #[test]
-fn test() {
+fn test() -> PolyResult {
     let mut q = QueryBuilder::default();
-    q.insert_usize("user", "1001");
+    q.insert("id", Content::Str("str"));
+    q.insert("user", Content::U64(u64::from_str("1001")?));
     println!("{:#?}", q);
-    println!("{:#?}", Test::deserialize(q))
+    println!("{:#?}", TestEnum::deserialize(q));
+    Ok(())
 }
