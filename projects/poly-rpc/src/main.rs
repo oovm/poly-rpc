@@ -1,18 +1,8 @@
-#![allow(incomplete_features)]
-#![feature(async_fn_in_trait)]
-
-mod defines;
-mod errors;
-
 use hyper::{
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server, StatusCode,
+    Server,
 };
 use std::{convert::Infallible, net::SocketAddr};
-
-async fn hello_world(_: Request<Body>) -> Result<Response<Body>, StatusCode> {
-    Ok(Response::new("Hello, World!".into()))
-}
 
 #[tokio::main]
 async fn main() {
