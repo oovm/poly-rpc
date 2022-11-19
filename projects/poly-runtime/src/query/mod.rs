@@ -1,13 +1,25 @@
-use std::{
-    collections::BTreeMap,
-    fmt::{Debug, Formatter},
+use std::fmt::{Debug, Formatter};
+
+use serde::{
+    __private::de::{Content, ContentDeserializer},
+    de::{DeserializeSeed, MapAccess, Visitor},
+    Deserialize, Deserializer,
 };
 
-use serde::{__private::de::Content, de::Visitor, Deserialize, Deserializer};
-
-#[derive(Default)]
 pub struct QueryBuilder<'de> {
-    inner: BTreeMap<&'de str, Content<'de>>,
+    inner: Content<'de>,
+}
+
+impl<'de> QueryBuilder<'de> {
+    fn to_deserializer(self) -> ContentDeserializer<'de, serde::de::value::Error> {
+        ContentDeserializer::new(self.inner)
+    }
+}
+
+impl Default for QueryBuilder<'_> {
+    fn default() -> Self {
+        Self { inner: Content::Map(vec![]) }
+    }
 }
 
 impl Debug for QueryBuilder<'_> {
@@ -23,7 +35,30 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.inner {
+            Content::Bool(v) => visitor.visit_bool(v),
+            Content::U8(v) => visitor.visit_u8(v),
+            Content::U16(v) => visitor.visit_u16(v),
+            Content::U32(v) => visitor.visit_u32(v),
+            Content::U64(v) => visitor.visit_u64(v),
+            Content::I8(v) => visitor.visit_i8(v),
+            Content::I16(v) => visitor.visit_i16(v),
+            Content::I32(v) => visitor.visit_i32(v),
+            Content::I64(v) => visitor.visit_i64(v),
+            Content::F32(v) => visitor.visit_f32(v),
+            Content::F64(v) => visitor.visit_f64(v),
+            Content::Char(v) => visitor.visit_char(v),
+            Content::String(v) => visitor.visit_string(v),
+            Content::Str(v) => visitor.visit_borrowed_str(v),
+            Content::ByteBuf(v) => visitor.visit_byte_buf(v),
+            Content::Bytes(v) => visitor.visit_borrowed_bytes(v),
+            Content::Unit => visitor.visit_unit(),
+            Content::None => visitor.visit_none(),
+            Content::Some(v) => visitor.visit_some(ContentDeserializer::new(*v)),
+            Content::Newtype(v) => visitor.visit_newtype_struct(ContentDeserializer::new(*v)),
+            Content::Seq(v) => visit_content_seq(v, visitor),
+            Content::Map(v) => visit_content_map(v, visitor),
+        }
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -121,13 +156,14 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.inner.remove("text") {
-            Some(Content::String(s)) => visitor.visit_string(s),
-            Some(Content::Str(s)) => visitor.visit_str(s),
-            _ => {
-                panic!()
-            }
-        }
+        // match self.inner.remove("text") {
+        //     Some(Content::String(s)) => visitor.visit_string(s),
+        //     Some(Content::Str(s)) => visitor.visit_str(s),
+        //     _ => {
+        //         panic!()
+        //     }
+        // }
+        todo!()
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -197,6 +233,7 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
+        // self.to_deserializer().deserialize_struct();
         todo!()
     }
 
@@ -209,78 +246,11 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("{name:?}");
-        println!("{fields:?}");
-        for field in fields {
-            match self.inner.remove(field) {
-                Some(Content::Bool(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::U8(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::U16(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::U32(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::U64(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::I8(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::I16(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::I32(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::I64(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::F32(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::F64(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Char(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::String(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Str(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::ByteBuf(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Bytes(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Newtype(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Seq(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Map(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::Some(v)) => {
-                    panic!("{v:?}")
-                }
-                Some(Content::None) => {}
-                Some(Content::Unit) => {}
-                None => {
-                    panic!("{field}")
-                }
-            }
+        match self.inner {
+            Content::Seq(v) => visit_content_seq(v, visitor),
+            Content::Map(v) => visit_content_map(v, visitor),
+            _ => Err(panic!()),
         }
-        panic!()
     }
 
     fn deserialize_enum<V>(
@@ -309,21 +279,51 @@ impl<'de> Deserializer<'de> for QueryBuilder<'de> {
         todo!()
     }
 }
+
 impl<'de> QueryBuilder<'de> {
     pub fn get(&self) {}
-    pub fn insert_path(&mut self, key: &'static str, value: &'de str) {
-        self.inner.insert(key, Content::Str(value));
+    pub fn insert_usize(&mut self, key: &'static str, value: &'de str) {
+        match &mut self.inner {
+            Content::Map(v) => v.push((Content::Str(key), Content::Str(value))),
+            _ => {}
+        }
     }
     pub fn insert_header(&mut self) {}
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Test {
-    id: usize,
+    user: usize,
 }
 
 #[test]
 fn test() {
-    let q = QueryBuilder::default();
+    let mut q = QueryBuilder::default();
+    q.insert_usize("user", "1001");
+    println!("{:#?}", q);
     println!("{:#?}", Test::deserialize(q))
+}
+
+fn visit_content_seq<'de, V, E>(content: Vec<Content<'de>>, visitor: V) -> Result<V::Value, E>
+where
+    V: Visitor<'de>,
+    E: serde::de::Error,
+{
+    let seq = content.into_iter().map(ContentDeserializer::new);
+    let mut seq_visitor = serde::de::value::SeqDeserializer::new(seq);
+    let value = visitor.visit_seq(&mut seq_visitor)?;
+    seq_visitor.end()?;
+    Ok(value)
+}
+
+fn visit_content_map<'de, V, E>(content: Vec<(Content<'de>, Content<'de>)>, visitor: V) -> Result<V::Value, E>
+where
+    V: Visitor<'de>,
+    E: serde::de::Error,
+{
+    let map = content.into_iter().map(|(k, v)| (ContentDeserializer::new(k), ContentDeserializer::new(v)));
+    let mut map_visitor = serde::de::value::MapDeserializer::new(map);
+    let value = visitor.visit_map(&mut map_visitor)?;
+    map_visitor.end()?;
+    Ok(value)
 }
