@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 
 use hyper::{Body, HeaderMap, Method, Request, Response, StatusCode};
 use hyper::header::{CONTENT_TYPE, HeaderValue};
+use serde::de::Visitor;
+use poly_rt::PolyResult;
 use crate::errors::PolyResult;
 
 mod der;
@@ -20,11 +23,15 @@ impl Default for HelloRequest {
 
 
 impl HelloRequest {
-    fn with_path(mut self, id: &str) -> Self {
-        todo!()
-    }
-    fn with_query(mut self, query: &str) {
-        todo!()
+    fn with_query(mut self, query: &BTreeMap<String, String>) -> PolyResult<Self> {
+        match query.get("id") {
+
+            Some(_) => {},
+            None => {
+
+            }
+        }
+        self.id = query.get()
     }
 }
 
@@ -63,12 +70,15 @@ impl GameServer {
         let mut response = Response::new(Body::empty());
         let url = req.uri();
         let query = url.query();
+        let mut queries = BTreeMap::default();
+
         resolve_body(req.body(), req.headers());
         match req.method() {
             &Method::GET => match vec!["user", "128", "icon", "256"].as_slice() {
-                &["user", "not"] => {
+                &["user", user_id, "not", name] => {
+                    queries.insert("user_id", user_id);
+
                     HelloRequest::default()
-                        .with_path()
                         .with_query()
 
                     self.hello.get_hello()
@@ -84,9 +94,8 @@ impl GameServer {
 
 }
 
-fn resolve_body(body: &Body, headers: &HeaderMap) {
-    match headers.get(CONTENT_TYPE) {
-        Some(_) => {},
-        None => {}
-    }
+
+pub struct QueryBuilder {
+
 }
+

@@ -2,7 +2,6 @@
 #![feature(async_fn_in_trait)]
 
 mod defines;
-mod errors;
 
 use hyper::{Body, Request, Response, StatusCode};
 
