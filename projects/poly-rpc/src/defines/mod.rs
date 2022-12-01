@@ -1,8 +1,10 @@
 use std::net::SocketAddr;
 
-use serde::{de::Visitor, Deserialize};
+use serde::{de::Visitor, Deserialize, Serialize};
 
-use poly_rt::{Body, Method, PolyResult, QueryBuilder, Request, Response, StatusCode};
+use poly_rt::{Body, Method, PolyResult, QueryBuilder, Request, Response, Server, StatusCode};
+
+use crate::WorldContext;
 
 mod der;
 
@@ -17,26 +19,18 @@ impl Default for HelloRequest {
     }
 }
 
-impl HelloRequest {}
-
+#[derive(Debug, Serialize)]
 pub struct HelloResponse {}
 
-/// service world {
-///     hello(name: String) -> HelloResponse
-/// }
-pub trait World {
+impl Default for HelloResponse {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+pub trait WorldService {
     // get{}
     async fn get_hello(&mut self, input: HelloRequest) -> HelloResponse;
-}
-
-pub struct HelloContext {
-    context: String,
-}
-
-impl World for HelloContext {
-    async fn get_hello(&mut self, name: HelloRequest) -> HelloResponse {
-        todo!()
-    }
 }
 
 pub struct RouteDefine {}
@@ -44,28 +38,27 @@ pub struct RouteDefine {}
 pub struct GameServer {
     pub(crate) socket: SocketAddr,
     pub(crate) base: String,
-    pub(crate) hello: HelloContext,
+    pub(crate) world: WorldContext,
 }
 
 impl GameServer {
-    pub fn as_server(&self) {}
+    pub fn as_server(&self) {
+        // todo!()
+        Server::bind(&self.socket).serve()
+    }
 
-    async fn resolve_route(&mut self, req: Request<Body>) -> PolyResult {
+    async fn resolve_route(&mut self, request: Request<Body>) -> PolyResult<Response<Body>> {
         let mut response = Response::new(Body::empty());
-        let path = QueryBuilder::uri_path(&req, "/aa")?;
-        match req.method() {
+        let path = QueryBuilder::uri_path(&request, "/proxy")?;
+        match request.method() {
             &Method::GET => match path.as_slice() {
-                ["user", user_id, "not", name] => {
-                    let mut queries = QueryBuilder::from_uri(&req, &[]);
-                    queries.insert_path("user_id", user_id);
-                    queries.insert_path("name", name);
-                    self.hello.get_hello(HelloRequest::deserialize(queries.inner)?).await;
-                }
                 ["user", user_id, "not", name @ ..] => {
-                    let mut queries = QueryBuilder::from_uri(&req, &[]);
-                    queries.insert_path("user_id", *user_id);
-                    queries.insert_path("name", name);
-                    self.hello.get_hello(queries.cast_to::<HelloRequest>()?).await;
+                    let name = QueryBuilder::from_headers(&request, &[])
+                        .with_headers(&request.headers(), &["Req"])
+                        .with_path("user_id", user_id)
+                        .with_path("name", name)
+                        .cast_to::<HelloRequest>();
+                    self.world.get_hello(name).await?;
                 }
                 _ => {}
             },
@@ -73,6 +66,6 @@ impl GameServer {
                 *response.status_mut() = StatusCode::NOT_FOUND;
             }
         }
-        Ok(())
+        Ok(response)
     }
 }

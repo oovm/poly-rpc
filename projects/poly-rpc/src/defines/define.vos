@@ -1,0 +1,30 @@
+
+
+
+
+server {
+
+}
+
+
+service World {
+	def hello(): a;
+}
+
+class TypeA {
+	#header
+	a: 2,
+	#query
+	b: 2,
+	#path
+	c: a
+}
+
+service World {
+	def hello(a: TypeA) -> A {
+
+	}
+	def hello(..) -> 400 {
+
+	}
+}

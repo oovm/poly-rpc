@@ -3,6 +3,12 @@
 
 mod defines;
 
-// async fn hello_world(_: Request<Body>) -> Result<Response<Body>, StatusCode> {
-//     Ok(Response::new("Hello, World!".into()))
-// }
+pub struct WorldContext {
+    context: String,
+}
+
+impl World for WorldContext {
+    async fn get_hello(&mut self, name: HelloRequest) -> HelloResponse {
+        todo!()
+    }
+}

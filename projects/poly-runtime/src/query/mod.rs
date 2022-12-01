@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use http::Request;
+use http::{HeaderMap, Request};
 use hyper::Body;
 use serde::{
     __private::de::Content,
@@ -11,7 +11,7 @@ use serde::{
     Deserialize, Deserializer,
 };
 
-use serde_types::{OneOrMany, ParsableValue};
+use serde_types::ParsableValue;
 
 use crate::PolyResult;
 
@@ -29,17 +29,50 @@ impl Debug for QueryBuilder<'_> {
 }
 
 impl<'request> QueryBuilder<'request> {
-    pub fn from_uri(request: &'request Request<Body>, headers: &'static [&'static str]) -> Self {
-        let mut out = Default::default();
-        let queries = match request.uri().query() {
+    pub fn from_headers(r: &'request Request<Body>, keys: &'request [&'request str]) -> Self {
+        let mut out = QueryBuilder::default();
+        let queries = match r.uri().query() {
             Some(s) => s,
             None => return out,
         };
         for query in queries.split("&") {
             println!("{query}")
         }
+        for key in keys {
+            out.add_header(r.headers(), key)
+        }
         out
     }
+    fn add_header(&mut self, headers: &'request HeaderMap, key: &'request str) {
+        match headers.get(key) {
+            Some(s) => match s.to_str() {
+                Ok(o) => self.inner.insert(key, Content::Str(o)),
+                Err(_) => {}
+            },
+            None => {}
+        }
+    }
+    pub fn with_path<T>(mut self, key: &'request str, value: T) -> Self
+    where
+        T: Into<QuerySegment<'request>>,
+    {
+        let c = match value.into() {
+            QuerySegment::One(v) => Content::Str(v),
+            QuerySegment::Many(v) => Content::Seq(v.iter().map(|s| Content::Str(*s)).collect()),
+        };
+        self.inner.insert(key, c);
+        self
+    }
+    pub fn cast_to<T>(self) -> PolyResult<T>
+    where
+        T: Deserialize<'request>,
+    {
+        Ok(T::deserialize(self.inner)?)
+    }
+    pub fn insert_header(&mut self) {}
+}
+
+impl<'request> QueryBuilder<'request> {
     pub fn uri_path(req: &'request Request<Body>, prefix: &'static str) -> PolyResult<Vec<&'request str>> {
         let mut out = vec![];
         let url = req.uri().path();
@@ -58,23 +91,6 @@ impl<'request> QueryBuilder<'request> {
     pub fn get(&self, key: &str) -> Option<&Content<'request>> {
         self.inner.get(key)
     }
-    pub fn insert_path<T>(&mut self, key: &'request str, value: T)
-    where
-        T: Into<QuerySegment<&'request>>,
-    {
-        let mut out = value.into().unwrap();
-        match out.len() {
-            1 => unsafe { self.inner.insert(key, Content::Str(out.get_unchecked(0))) },
-            _ => self.inner.insert(key, Content::Seq(out.into_iter().map(Content::Str).collect())),
-        }
-    }
-    pub fn cast_to<T>(self) -> PolyResult<T>
-    where
-        T: Deserialize<'request>,
-    {
-        Ok(T::deserialize(self.inner)?)
-    }
-    pub fn insert_header(&mut self) {}
 }
 
 #[derive(Debug)]
@@ -83,18 +99,23 @@ pub enum QuerySegment<'i> {
     Many(&'i [&'i str]),
 }
 
-impl<'i> From<&i str> for QuerySegment<'i> {
+impl<'i> From<&&'i str> for QuerySegment<'i> {
+    fn from(value: &&'i str) -> Self {
+        Self::One(value)
+    }
+}
+
+impl<'i> From<&'i str> for QuerySegment<'i> {
     fn from(value: &'i str) -> Self {
         Self::One(value)
     }
 }
 
-impl<'i> From<&i [&'i str]> for QuerySegment<'i> {
-    fn from(value: &i [&'i str]) -> Self {
+impl<'i> From<&'i [&'i str]> for QuerySegment<'i> {
+    fn from(value: &'i [&'i str]) -> Self {
         Self::Many(value)
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct Test {
